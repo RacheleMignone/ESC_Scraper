@@ -3,6 +3,7 @@ import logging
 import pandas as pd
 from pathlib import Path
 from typing import List, Dict, Set
+import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -11,9 +12,13 @@ class HudocStorage:
     def __init__(self, final_parquet: str = "ESC_Corpus_Final.parquet"):
         self.final_parquet = Path(final_parquet)
 
+
     def setup(self):
         # No more temp folders needed!
         pass
+
+    def get_parquet_length(self) -> int:
+        return len(pd.read_parquet(self.final_parquet))
 
     def get_existing_ids(self) -> Set[str]:
         """Reads the final dataset and returns fully completed IDs."""
@@ -25,12 +30,13 @@ class HudocStorage:
             valid_ids = set()
 
             for _, row in df.iterrows():
-                if 'text_en' in row and pd.notna(row['text_en']) and row['text_en'] != '':
-                    if pd.notna(row.get('api_id_en')):
+
+                if pd.notna(row.get('api_id_en')):
+                    if 'text_en' in row and pd.notna(row['text_en']) and row['text_en'] != '':
                         valid_ids.add(str(row['api_id_en']))
 
-                if 'text_fr' in row and pd.notna(row['text_fr']) and row['text_fr'] != '':
-                    if pd.notna(row.get('api_id_fr')):
+                if pd.notna(row.get('api_id_fr')):
+                    if 'text_fr' in row and pd.notna(row['text_fr']) and row['text_fr'] != '':
                         valid_ids.add(str(row['api_id_fr']))
 
             return valid_ids
@@ -75,7 +81,7 @@ class HudocStorage:
         """Transforms raw API rows into single Base ID rows with EN/FR columns."""
 
         def parse_doc_id(doc_id):
-            match = re.search(r'[_/\-](en|fr)$', str(doc_id), re.IGNORECASE)
+            match = re.search(r'[_/\-](en|fr|fre|eng)$', str(doc_id), re.IGNORECASE)
             if match:
                 return doc_id[:match.start()], match.group(1).lower()
             return doc_id, None
@@ -105,13 +111,14 @@ class HudocStorage:
                 if not isinstance(lang, str):
                     continue
 
-                row["available_languages"].append(lang.upper())
-                row[f"api_id_{lang}"] = g_row.get("document_id")
-                row[f"title_{lang}"] = g_row.get("title")
+                row["available_languages"].append(lang.upper()[:2])
+                row[f"api_id_{lang[:2]}"] = g_row.get("document_id")
+                row[f"title_{lang[:2]}"] = g_row.get("title")
+                row["download_date"]= datetime.date.today()
 
                 # Safely extract text
                 text_val = g_row.get("document_text")
-                row[f"text_{lang}"] = text_val if pd.notna(text_val) else None
+                row[f"text_{lang[:2]}"] = text_val if pd.notna(text_val) else None
 
             aggregated.append(row)
 

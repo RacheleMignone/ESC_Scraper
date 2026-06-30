@@ -17,13 +17,17 @@ def main():
 
     # 1. Initialize the real modules
     fetcher = HudocApiFetcher()
+
     downloader = HudocDownloader()
+
+
 
     # We are now using your real, permanent production paths
     storage = HudocStorage(
         final_parquet="ESC_Corpus_Final.parquet"
     )
 
+    initial_len= storage.get_parquet_length()
     # 2. Wire them into the Orchestrator
     orchestrator = HudocOrchestrator(
         api_fetcher=fetcher,
@@ -42,6 +46,11 @@ def main():
         logger.error(f"Critical error: {e}", exc_info=True)
     finally:
         logger.info("Closing network connections...")
+        print(f"Total number of fetched ids: ", fetcher.total_fetched)
+        # print(f"Id list: ", fetcher.fetched_ids)
+        print("Duplicates: ", fetcher.duplicates)
+        print("Added: ", storage.get_parquet_length() - initial_len)
+
         fetcher.close()
         downloader.close()
         logger.info("Pipeline shutdown complete.")

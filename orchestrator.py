@@ -20,7 +20,8 @@ class HudocOrchestrator:
 
         # Build Year Queries
         queries = []
-        for year in range(1960, 2027):
+        # for year in range(1965, 2027):
+        for year in range(2026, 2027):
             queries.append({
                 "label": f"Year {year}",
                 "query_string": f"contentsitename:ESC AND escpublicationdate:[{year}-01-01T00:00:00Z TO {year}-12-31T23:59:59Z]"
@@ -46,6 +47,7 @@ class HudocOrchestrator:
 
                         # 1. Filter against existing final parquet
                     new_docs = [doc for doc in batch if doc['document_id'] not in existing_ids]
+                    print('NEW DOCS', new_docs)
 
                     if not new_docs:
                         offset += batch_size
@@ -58,10 +60,11 @@ class HudocOrchestrator:
                     # 2. Download texts directly into the dictionaries
                     for doc in new_docs:
                         doc_id = doc['document_id']
-                        pbar.set_postfix_str(f"Downloading: {doc_id[:15]}")
+                        pbar.set_postfix_str(f"Downloading: {doc_id}")
+                        content_store_type = doc['content_store_type']
 
                         try:
-                            text = self.downloader.download_text(doc_id)
+                            text = self.downloader.download_text(doc_id, content_store_type)
                             doc['document_text'] = text
                             docs_to_save.append(doc)
                             new_docs_downloaded += 1
@@ -70,6 +73,7 @@ class HudocOrchestrator:
 
                     # 3. DIRECT APPEND: Save the fully populated docs instantly to the final file
                     if docs_to_save:
+
                         self.storage.append_to_final_dataset(docs_to_save)
                         # Add newly saved IDs to memory so we don't duplicate them
                         for d in docs_to_save:

@@ -23,42 +23,24 @@ class HudocDownloader:
         before_sleep=before_sleep_log(logger, logging.WARNING),
         reraise=True
     )
-    def download_text(self, document_id: str) -> Optional[str]:
+    def download_text(self, document_id: str, store_type: str) -> Optional[str]:
         """Downloads the document, parses HTML, and returns clean text."""
         time.sleep(random.uniform(1.0, 2.5))  # Politeness delay
         print(self.base_url)
 
         response = None
 
-        # --- PHASE 1: THE DOWNLOAD ---
         try:
-            # Primary Attempt
-            fallback_url = f"{self.base_url.replace('docx', 'xml')}?library=ESC&id={document_id}"
-            response = self.client.get(fallback_url, follow_redirects=True)
+            raw_url = f"{self.base_url.replace('docx',store_type.lower())}?library=ESC&id={document_id.replace(' ','')}"
+            response = self.client.get(raw_url, follow_redirects=True)
             response.raise_for_status()
 
-        except Exception as e:
-            print(f"Primary download failed for {document_id}, retrying with xml...")
+        except Exception as fallback_e:
+            print(f"❌ Unable to download {document_id}")
+            return None  # Safely exit and let the Orchestrator move on
 
-        if not response.content.decode('utf-8', errors='ignore').strip():
-            # Fallback Attempt (Protected!)
-            try:
-
-                raw_url = f"{self.base_url}?library=ESC&id={document_id}"
-                response = self.client.get(raw_url, follow_redirects=True)
-                response.raise_for_status()
-
-            except Exception as fallback_e:
-                print(f"❌ Both primary and fallback failed for {document_id}")
-                return None  # Safely exit and let the Orchestrator move on
-
-        # --- PHASE 2: THE PARSING ---
-        # If the code reaches here, we are guaranteed to have a successful 'response'
         try:
             raw_html = response.content.decode('utf-8', errors='ignore')
-
-            # Strip HTML tags.
-            # Using separator="\n" prevents words from gluing together when tags are removed
             soup = BeautifulSoup(raw_html, features='html.parser')
             text = soup.get_text(separator="\n", strip=True)
 
@@ -84,14 +66,14 @@ def test_downloader():
 
     # 👇 PASTE A REAL ID FROM YOUR FETCHER TEST HERE 👇
     # Example: "XXII-4/def/HRV/8/1/EN"
-    test_id = "I_Ob_-10/Ob/FR"
+    test_id = "CR_2016_GEO_FRE"
 
     try:
         logger.info(f"Attempting to download text for ID: {test_id}")
         logger.info("Waiting for the politeness delay (1-3 seconds)...")
 
         # 1. Fire the download request
-        text_content = downloader.download_text(test_id)
+        text_content = downloader.download_text(test_id, 'xml')
 
         if not text_content:
             logger.error("❌ The downloader returned None. The file might not exist, or the COE server blocked us.")
