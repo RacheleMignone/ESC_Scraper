@@ -107,11 +107,14 @@ class HudocStorage:
                 row[col] = group[col].dropna().iloc[0] if not group[col].dropna().empty else None
 
             for _, g_row in group.iterrows():
-                lang = g_row['lang']
+                lang = g_row.pop(['lang'])
+                # lang = g_row['lang']
                 if not isinstance(lang, str):
                     continue
 
-                row["available_languages"].append(lang.upper()[:2])
+                if lang.upper()[:2] not in row["available_languages"]:
+                    row["available_languages"].append(lang.upper()[:2])
+
                 row[f"api_id_{lang[:2]}"] = g_row.get("document_id")
                 row[f"title_{lang[:2]}"] = g_row.get("title")
                 row["download_date"]= datetime.date.today()
@@ -124,4 +127,8 @@ class HudocStorage:
 
         df_merged = pd.DataFrame(aggregated)
         df_merged.set_index("base_id", inplace=True)
+
+        if 'language' in df_merged.columns:
+            df_merged.drop('language', axis=1, inplace=True)
+
         return df_merged
